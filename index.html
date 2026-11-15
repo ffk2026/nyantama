@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>にゃんたまブンブン</title>
+<!-- リンクを貼ったときのカード表示（OGP） -->
+<meta name="description" content="猫のたまをタップしてぷるん・ブルブル・ブンブン。くだらないけどクセになる。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="にゃんたまブンブン">
+<meta property="og:description" content="猫のたまをタップしてぷるん・ブルブル・ブンブン。くだらないけどクセになる。">
+<meta property="og:url" content="https://ffk2026.github.io/nyantama/">
+<meta property="og:image" content="https://ffk2026.github.io/nyantama/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 <style>
 /* ========== 見た目（CSS） ========== */
 :root {
@@ -120,6 +131,8 @@ aside h2:first-child { margin-top: 0; }
 .note { font-size: 12px; opacity: 0.7; min-height: 1.4em; margin: 6px 0 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .btn.primary { background: var(--accent); border-color: var(--accent-dark); color: #fff; font-weight: bold; }
+#shareBtn.ready { background: #1d1d1f; border-color: #1d1d1f; color: #fff; font-weight: bold; animation: nudge 0.6s ease-in-out 3; }
+@keyframes nudge { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
 #mood { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; font-size: 12px; }
 #mood .bar { width: 150px; height: 10px; border-radius: 99px; background: rgba(0,0,0,0.15); overflow: hidden; }
@@ -247,6 +260,10 @@ aside h2:first-child { margin-top: 0; }
   <div class="actions" style="margin-top:0">
     <button class="btn primary" id="chalBtn">10秒チャレンジ</button>
     <button class="btn" id="treatBtn">おやつをあげる</button>
+  </div>
+  <div class="actions" style="margin-top:8px">
+    <button class="btn" id="shareBtn">結果をシェア</button>
+    <button class="btn" id="copyBtn">リンクをコピー</button>
   </div>
   <p class="note" id="records"></p>
 
@@ -529,6 +546,31 @@ $('chalBtn').onclick = () => {
   mood = 100; chal = { end: performance.now() + 10000, base: cfg.count };
   $('hint').classList.add('live'); say('よーい、ドン！', true); blip(700, 700, 0.3, 'square', 0.08);
 };
+// ---- シェア：スマホは端末の共有メニュー、パソコンは X の投稿画面を開く ----
+const SITE_URL = 'https://ffk2026.github.io/nyantama/';
+let lastChal = null;   // 直前の10秒チャレンジの回数
+function shareText() {
+  if (lastChal !== null) return `10秒で${lastChal}回にゃんたまをブンブンしたにゃ！ 記録に挑戦するにゃ`;
+  let r = RANKS[0][1];
+  for (const [n, name] of RANKS) if (cfg.count >= n) r = name;
+  return `にゃんたまを${cfg.count}回ブンブンして称号「${r}」になったにゃ`;
+}
+$('shareBtn').onclick = async () => {
+  const text = shareText() + ' #にゃんたまブンブン';
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  if (touch && navigator.share) {
+    try { await navigator.share({ title: 'にゃんたまブンブン', text, url: SITE_URL }); } catch (e) {}
+    return;
+  }
+  const u = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(SITE_URL);
+  window.open(u, '_blank', 'noopener,width=600,height=500');
+  $('shareBtn').classList.remove('ready');
+};
+$('copyBtn').onclick = async () => {
+  try { await navigator.clipboard.writeText(SITE_URL); say('リンクをコピーしたにゃ', true); }
+  catch (e) { prompt('このリンクをコピーしてにゃ', SITE_URL); }
+};
+
 const BADGES = [
   ['first',  'はじめてのぷるん', 'まず1回',                 () => cfg.count >= 1],
   ['fly',    '竹とんぼ',         '回しまくると…',           () => cfg.stats.flew],
@@ -682,7 +724,8 @@ function frame(now) {
     else {
       const best = n > cfg.stats.chalBest;
       if (best) cfg.stats.chalBest = n;
-      say(`${n}回にゃ！` + (best ? ' 新記録にゃ！' : ''), true); blip(500, 1000, 0.4, 'triangle', 0.12);
+      say(`${n}回にゃ！` + (best ? ' 新記録にゃ！' : '') + ' シェアするにゃ？', true); blip(500, 1000, 0.4, 'triangle', 0.12);
+      lastChal = n; $('shareBtn').classList.add('ready');
       chal = null; $('hint').classList.remove('live'); $('hint').textContent = HINT; dirty = true;
     }
   }
